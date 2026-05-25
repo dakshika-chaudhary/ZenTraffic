@@ -1,0 +1,7 @@
+package com.zentraffic.common.dto;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+
+public record VerifyRegistrationRequest(@Email @NotBlank String email, @NotBlank String otp) {
+}

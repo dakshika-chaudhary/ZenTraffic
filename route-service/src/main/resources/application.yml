@@ -1,0 +1,15 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: route-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/

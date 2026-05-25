@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #eef3ef;
+  --surface: #ffffff;
+  --surface-strong: #f8fbf8;
+  --ink: #14201d;
+  --muted: #5f6e68;
+  --line: rgba(20, 32, 29, 0.12);
+  --line-strong: rgba(20, 32, 29, 0.2);
+  --road: #303935;
+  --road-line: rgba(255, 220, 91, 0.8);
+  --flow: #20986c;
+  --signal: #e9b73f;
+  --alert: #d84f43;
+  --info: #2f7fc1;
+  --shadow: 0 18px 45px rgba(20, 32, 29, 0.12);
+}
+
+.dark {
+  --bg: #101817;
+  --surface: #182421;
+  --surface-strong: #202f2b;
+  --ink: #edf6f1;
+  --muted: #9cafaa;
+  --line: rgba(237, 246, 241, 0.12);
+  --line-strong: rgba(237, 246, 241, 0.22);
+  --road: #2a3230;
+  --road-line: rgba(247, 197, 69, 0.85);
+  --flow: #39c48d;
+  --signal: #f2c84f;
+  --alert: #ff6b5f;
+  --info: #75b7f0;
+  --shadow: 0 22px 55px rgba(0, 0, 0, 0.34);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+select,
+input {
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+select,
+input {
+  background: var(--surface);
+  color: var(--ink);
+}
