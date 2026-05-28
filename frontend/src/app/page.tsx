@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Activity, Bell, CarFront, Gauge, LogIn, LogOut, MapPinned, Moon, Navigation, RadioTower, ShieldCheck, Sun, TrafficCone, UserPlus, Zap } from "lucide-react";
+import { Activity, Bell, CheckCircle2, Clock3, Gauge, LogIn, LogOut, MapPinned, Moon, Navigation, RadioTower, Route as RouteIcon, ShieldCheck, Sparkles, Sun, TrafficCone, UserPlus, X, Zap } from "lucide-react";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import { AnalyticsSummary, ApiError, AuthResponse, RegistrationOtpResponse, Road, RouteResponse, UserProfile, api } from "@/lib/api";
@@ -26,6 +26,7 @@ export default function Home() {
   const [roads, setRoads] = useState<Road[]>([]);
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [route, setRoute] = useState<RouteResponse | null>(null);
+  const [routeResultOpen, setRouteResultOpen] = useState(false);
   const [alerts, setAlerts] = useState<string[]>([]);
   const [source, setSource] = useState("Sector 18");
   const [destination, setDestination] = useState("Akshardham");
@@ -100,6 +101,7 @@ export default function Home() {
     setRoads([]);
     setSummary(null);
     setRoute(null);
+    setRouteResultOpen(false);
     window.localStorage.removeItem(SESSION_KEY);
   }
 
@@ -132,7 +134,9 @@ export default function Home() {
 
   async function calculateRoute() {
     await withAuth(async () => {
-      setRoute(await api<RouteResponse>("/route/calculate", token, { method: "POST", body: JSON.stringify({ source, destination, strategy: "DIJKSTRA", emergencyVehicle: view === "police" }) }));
+      const nextRoute = await api<RouteResponse>("/route/calculate", token, { method: "POST", body: JSON.stringify({ source, destination, strategy: "DIJKSTRA", emergencyVehicle: view === "police" }) });
+      setRoute(nextRoute);
+      setRouteResultOpen(true);
     });
   }
 
@@ -186,7 +190,7 @@ export default function Home() {
                 <Metric icon={<ShieldCheck size={18} />} label="Mode" value={view === "police" ? "Emergency" : view} helper="current lens" />
               </div>
               <TrafficMap roads={roads} />
-              {route && <Panel title="Suggested Relief Route"><div className="rounded border p-3 text-sm" style={{ borderColor: "var(--line)", background: "var(--surface-strong)", color: "var(--muted)" }}>{route.path.join(" -> ")}</div><div className="mt-3 grid gap-2 md:grid-cols-4"><Metric label="Distance" value={`${route.distanceKm} km`} /><Metric label="ETA" value={`${route.estimatedMinutes} min`} /><Metric label="Congestion" value={route.congestionScore} /><Metric label="Saved" value={`${route.timeSavedMinutes} min`} /></div></Panel>}
+              {route && <RouteResultHighlight route={route} source={source} destination={destination} onOpen={() => setRouteResultOpen(true)} />}
               <section className="grid gap-5 lg:grid-cols-2">
                 <Panel title={view === "driver" ? "Driver Assistance" : view === "police" ? "Police Dashboard" : "Admin Analytics"}>{(summary?.hotspots ?? roads).slice(0, 5).map((road) => <RoadRow key={road.id} road={road} />)}{roads.length === 0 && <p className="text-sm" style={{ color: "var(--muted)" }}>Sign in to load live roads and hotspot rankings.</p>}</Panel>
                 <Panel title="Relief Rules"><div className="space-y-3 text-sm leading-6" style={{ color: "var(--muted)" }}><Rule color="var(--flow)" text="Healthy roads stay green when density is controlled and speeds remain steady." /><Rule color="var(--signal)" text="Scores above 45 trigger signal timing suggestions and route penalties." /><Rule color="var(--alert)" text="Accidents and heavy congestion publish Kafka events for instant dashboard alerts." /></div></Panel>
@@ -195,6 +199,7 @@ export default function Home() {
           </div>
         </div>
         {authOpen && <AuthModal mode={authMode} setMode={setAuthMode} message={authMessage} setMessage={setAuthMessage} onClose={() => setAuthOpen(false)} onLogin={saveSession} />}
+        {routeResultOpen && route && <RouteResultModal route={route} source={source} destination={destination} onClose={() => setRouteResultOpen(false)} />}
       </div>
     </main>
   );
@@ -228,6 +233,116 @@ function AuthModal({ mode, setMode, message, setMessage, onClose, onLogin }: { m
     } catch (error) { setMessage(error instanceof Error ? error.message : "Authentication failed"); } finally { setBusy(false); }
   }
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4 backdrop-blur-sm"><div className="w-full max-w-md rounded-md border p-5 shadow-[var(--shadow)]" style={cardStyle}><div className="mb-4 flex items-start justify-between gap-4"><div><h2 className="text-xl font-semibold">{mode === "login" ? "Sign in" : mode === "register" ? "Create account" : "Verify OTP"}</h2><p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>{mode === "login" ? "Your refresh session stays valid for 15 days." : mode === "register" ? "Create an account and verify it with OTP." : "Use the generated OTP to activate the account."}</p></div><button onClick={onClose} className="rounded px-2 py-1 text-xl leading-none" style={{ color: "var(--muted)" }} aria-label="Close">x</button></div><form onSubmit={submit} className="space-y-3">{mode === "register" && <Input value={name} setValue={setName} placeholder="Full name" /> }<Input value={email} setValue={setEmail} placeholder="Email" type="email" disabled={mode === "otp"} />{mode !== "otp" && <Input value={password} setValue={setPassword} placeholder="Password" type="password" />}{mode === "register" && <select value={role} onChange={(event) => setRole(event.target.value as View)} className="w-full rounded border p-2" style={{ borderColor: "var(--line)" }}><option value="driver">Driver</option><option value="police">Police</option><option value="admin">Admin</option></select>}{mode === "otp" && <Input value={otp} setValue={setOtp} placeholder="OTP" className="tracking-[0.3em]" />}{devOtp && <p className="rounded border p-2 text-sm" style={{ borderColor: "color-mix(in srgb, var(--flow) 38%, transparent)", background: "color-mix(in srgb, var(--flow) 12%, var(--surface))" }}>Development OTP: <span className="font-semibold">{devOtp}</span></p>}{message && <p className="rounded border p-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--surface-strong)", color: "var(--muted)" }}>{message}</p>}<button disabled={busy} className="flex w-full items-center justify-center gap-2 rounded px-3 py-2 font-medium disabled:opacity-60" style={{ background: "var(--ink)", color: "var(--surface)" }}>{mode === "login" ? <LogIn size={18} /> : <UserPlus size={18} />}{busy ? "Please wait" : mode === "login" ? "Sign in" : mode === "register" ? "Send OTP" : "Verify registration"}</button></form><div className="mt-4 flex justify-center gap-2 text-sm"><button onClick={() => { setMode(mode === "login" ? "register" : "login"); setMessage(""); }} className="font-medium" style={{ color: "var(--flow)" }}>{mode === "login" ? "Create an account" : "Back to sign in"}</button></div></div></div>;
+}
+
+function RouteResultHighlight({ route, source, destination, onOpen }: { route: RouteResponse; source: string; destination: string; onOpen: () => void }) {
+  const tone = getCongestionTone(route.congestionScore);
+  return (
+    <section className="result-highlight relative overflow-hidden rounded-md border p-4 shadow-[var(--shadow)]" style={{ borderColor: tone.color, background: "linear-gradient(135deg, color-mix(in srgb, var(--flow) 16%, var(--surface)), var(--surface) 46%, color-mix(in srgb, var(--signal) 16%, var(--surface)))" }}>
+      <div className="result-shimmer" />
+      <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase" style={{ borderColor: tone.color, color: tone.color, background: "color-mix(in srgb, var(--surface) 78%, transparent)" }}>
+            <Sparkles size={14} /> Final route result
+          </div>
+          <h2 className="text-2xl font-semibold leading-tight">Best route from {source} to {destination}</h2>
+          <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>{tone.summary}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[520px]">
+          <ResultStat icon={<RouteIcon size={17} />} label="Distance" value={`${route.distanceKm} km`} />
+          <ResultStat icon={<Clock3 size={17} />} label="ETA" value={`${route.estimatedMinutes} min`} />
+          <ResultStat icon={<Gauge size={17} />} label="Pressure" value={tone.label} color={tone.color} />
+          <ResultStat icon={<Zap size={17} />} label="Saved" value={`${route.timeSavedMinutes} min`} />
+        </div>
+      </div>
+      <div className="relative z-10 mt-4 flex flex-col gap-3 rounded border p-3 md:flex-row md:items-center md:justify-between" style={{ borderColor: "var(--line)", background: "color-mix(in srgb, var(--surface) 86%, transparent)" }}>
+        <RoutePath path={route.path} />
+        <button onClick={onOpen} className="inline-flex shrink-0 items-center justify-center gap-2 rounded px-3 py-2 text-sm font-semibold text-white" style={{ background: "var(--ink)" }}>
+          <Sparkles size={16} /> View popup
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function RouteResultModal({ route, source, destination, onClose }: { route: RouteResponse; source: string; destination: string; onClose: () => void }) {
+  const tone = getCongestionTone(route.congestionScore);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="route-result-title">
+      <div className="result-modal w-full max-w-3xl overflow-hidden rounded-md border shadow-[0_28px_90px_rgba(0,0,0,0.38)]" style={{ borderColor: tone.color, background: "var(--surface)" }}>
+        <div className="relative overflow-hidden p-5 text-white" style={{ background: "linear-gradient(135deg, #12342b, #1f6f55 54%, #d59d2b)" }}>
+          <div className="absolute inset-0 opacity-25" style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,.32), transparent)" }} />
+          <div className="relative z-10 flex items-start justify-between gap-4">
+            <div>
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/15 px-3 py-1 text-xs font-semibold uppercase">
+                <CheckCircle2 size={15} /> Route calculated
+              </div>
+              <h2 id="route-result-title" className="text-3xl font-semibold leading-tight">Your best route is ready</h2>
+              <p className="mt-2 text-sm text-white/82">{source} to {destination} with {route.timeSavedMinutes} minutes saved.</p>
+            </div>
+            <button onClick={onClose} className="flex h-10 w-10 shrink-0 items-center justify-center rounded border border-white/35 bg-white/15 text-white" aria-label="Close route result">
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-5">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <ResultStat icon={<RouteIcon size={18} />} label="Distance" value={`${route.distanceKm} km`} />
+            <ResultStat icon={<Clock3 size={18} />} label="Estimated time" value={`${route.estimatedMinutes} min`} />
+            <ResultStat icon={<Gauge size={18} />} label="Traffic pressure" value={tone.label} color={tone.color} />
+            <ResultStat icon={<Zap size={18} />} label="Time saved" value={`${route.timeSavedMinutes} min`} />
+          </div>
+
+          <div className="mt-5 rounded border p-4" style={{ borderColor: "var(--line)", background: "var(--surface-strong)" }}>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="font-semibold">Recommended path</h3>
+              <span className="rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: `color-mix(in srgb, ${tone.color} 14%, transparent)`, color: tone.color }}>{route.strategy}</span>
+            </div>
+            <RoutePath path={route.path} prominent />
+          </div>
+
+          <div className="mt-5 rounded border p-4 text-sm leading-6" style={{ borderColor: tone.color, background: `color-mix(in srgb, ${tone.color} 10%, var(--surface))`, color: "var(--muted)" }}>
+            <span className="font-semibold" style={{ color: "var(--ink)" }}>{tone.label}:</span> {tone.summary}
+          </div>
+
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <button onClick={onClose} className="inline-flex items-center justify-center gap-2 rounded px-4 py-2 font-semibold text-white" style={{ background: "var(--flow)" }}>
+              <CheckCircle2 size={18} /> Use this route
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ResultStat({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: React.ReactNode; color?: string }) {
+  return (
+    <div className="rounded border p-3" style={{ borderColor: "var(--line)", background: "color-mix(in srgb, var(--surface) 88%, transparent)" }}>
+      <div className="flex items-center gap-2 text-xs font-medium uppercase" style={{ color: "var(--muted)" }}>{icon}{label}</div>
+      <div className="mt-2 text-lg font-semibold" style={{ color: color ?? "var(--ink)" }}>{value}</div>
+    </div>
+  );
+}
+
+function RoutePath({ path, prominent = false }: { path: string[]; prominent?: boolean }) {
+  return (
+    <div className={`flex flex-wrap items-center gap-2 ${prominent ? "text-sm" : "text-xs"}`}>
+      {path.map((stop, index) => (
+        <span key={`${stop}-${index}`} className="flex items-center gap-2">
+          <span className="route-step rounded-full border px-3 py-1 font-semibold" style={{ borderColor: "var(--line-strong)", background: "var(--surface)", color: "var(--ink)" }}>{stop}</span>
+          {index < path.length - 1 && <span style={{ color: "var(--muted)" }}>to</span>}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function getCongestionTone(score: number) {
+  if (score >= 75) return { label: "Heavy", color: "var(--alert)", summary: "This is still the strongest available route, but traffic pressure is high. Use it with caution and expect slower movement." };
+  if (score >= 45) return { label: "Moderate", color: "var(--signal)", summary: "This route balances distance and congestion, avoiding the worst pressure points while keeping travel time controlled." };
+  return { label: "Smooth", color: "var(--flow)", summary: "This route has low traffic pressure and should give the calmest trip in the current city conditions." };
 }
 
 function Input({ value, setValue, placeholder, type = "text", disabled, className = "" }: { value: string; setValue: (value: string) => void; placeholder: string; type?: string; disabled?: boolean; className?: string }) { return <input value={value} onChange={(event) => setValue(event.target.value)} className={`w-full rounded border p-2 ${className}`} style={{ borderColor: "var(--line)" }} placeholder={placeholder} type={type} required disabled={disabled} />; }

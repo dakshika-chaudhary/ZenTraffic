@@ -68,3 +68,74 @@ input {
   background: var(--surface);
   color: var(--ink);
 }
+
+.result-highlight {
+  animation: result-pop 420ms ease-out both;
+}
+
+.result-highlight::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg, transparent 0 18%, rgba(255, 255, 255, 0.22) 28%, transparent 42%),
+    repeating-linear-gradient(90deg, transparent 0 28px, color-mix(in srgb, var(--ink) 4%, transparent) 28px 29px);
+  opacity: 0.48;
+}
+
+.result-shimmer {
+  position: absolute;
+  inset: -35% -60%;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 38%, rgba(255, 255, 255, 0.5) 50%, transparent 62%);
+  transform: translateX(-55%) rotate(8deg);
+  animation: result-shimmer 1800ms ease-out 180ms both;
+}
+
+.result-modal {
+  animation: modal-rise 240ms ease-out both;
+}
+
+.route-step {
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--ink) 10%, transparent);
+}
+
+@keyframes result-pop {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes result-shimmer {
+  from {
+    transform: translateX(-55%) rotate(8deg);
+  }
+  to {
+    transform: translateX(55%) rotate(8deg);
+  }
+}
+
+@keyframes modal-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .result-highlight,
+  .result-shimmer,
+  .result-modal {
+    animation: none;
+  }
+}
